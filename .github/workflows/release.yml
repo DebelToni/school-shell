@@ -1,0 +1,63 @@
+name: Build, test and release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+  packages: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: |
+          python3 publish-site.py
+          bash -n school site/setup.sh tests/*.sh
+          bash tests/bootstrap.sh
+          docker build -t school-shell:${{ github.ref_name }} .
+          bash tests/smoke.sh school-shell:${{ github.ref_name }}
+      - name: Publish image and archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          image=ghcr.io/debeltoni/school-shell:${{ github.ref_name }}-${{ matrix.arch }}
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag school-shell:${{ github.ref_name }} "$image"
+          docker push "$image"
+          mkdir dist
+          docker save school-shell:${{ github.ref_name }} | gzip -1 > dist/school-shell-${{ matrix.arch }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          retention-days: 3
+          compression-level: 0
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish multiarch tag and public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx imagetools create -t ghcr.io/debeltoni/school-shell:${{ github.ref_name }} \
+            ghcr.io/debeltoni/school-shell:${{ github.ref_name }}-amd64 \
+            ghcr.io/debeltoni/school-shell:${{ github.ref_name }}-arm64
+          (cd dist; sha256sum *.tar.gz > SHA256SUMS)
+          gh release create "$GITHUB_REF_NAME" dist/* --title "School shell $GITHUB_REF_NAME" \
+            --notes 'Ubuntu 24.04: plain Neovim, C/C++ tools, zsh and tmux. Native amd64 and arm64 builds tested before publishing.'

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+image=school-shell:v1
+name="school-$(id -u)"
+volume="school-home-$(id -u)"
+docker_cmd=(docker)
+if ! docker info >/dev/null 2>&1; then
+    docker_cmd=(sudo docker)
+fi
+if ! "${docker_cmd[@]}" info >/dev/null 2>&1; then
+    echo 'Docker is not running. Run: sudo systemctl start docker' >&2
+    exit 1
+fi
+if "${docker_cmd[@]}" container inspect "$name" >/dev/null 2>&1; then
+    label=$("${docker_cmd[@]}" inspect --format '{{index .Config.Labels "school-shell"}}' "$name")
+    if [[ $label != v1 ]]; then
+        echo "Container $name already exists and is not owned by school-shell." >&2
+        exit 1
+    fi
+else
+    "${docker_cmd[@]}" run -d --init --restart unless-stopped \
+        --name "$name" --hostname school --label school-shell=v1 \
+        --mount "type=volume,src=$volume,dst=/home/student" "$image" >/dev/null
+fi
+"${docker_cmd[@]}" start "$name" >/dev/null
+args=(-i)
+if [[ -t 0 && -t 1 ]]; then args+=(-t); fi
+if [[ $# == 0 ]]; then set -- zsh -l; fi
+exec "${docker_cmd[@]}" exec "${args[@]}" --workdir /home/student "$name" "$@"
