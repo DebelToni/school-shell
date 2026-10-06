@@ -64,7 +64,7 @@ Smoke tests compile and execute C and C++, check installed tools and a tmux sess
 
 Source: https://github.com/DebelToni/school-shell
 
-Current image: `ghcr.io/debeltoni/school-shell:v1.0.1`, with native `v1.0.1-amd64` and `v1.0.1-arm64` tags. The installer tags the downloaded release locally as `school-shell:v1`. Tag pushes run native GitHub Actions builds and smoke tests before publishing both architectures and public image archives to the release. GitHub initially makes GHCR packages private; the owner can switch the package to public in its settings. The release fallback keeps login-free installation working meanwhile.
+Current image: `ghcr.io/debeltoni/school-shell:v1.0.1`, with native `v1.0.1-amd64` and `v1.0.1-arm64` tags. The installer tags the downloaded release locally as `school-shell:v1`. Tag pushes run native GitHub Actions builds and smoke tests before publishing both architectures and public image archives to the release. GHCR visibility must permit anonymous pulls. If a new package is private, the owner can switch it to public in its settings. The release fallback also supports login-free installation when the registry is unavailable.
 
 `setup.sh` contains an embedded-helper placeholder. `publish-site.py` produces `site/setup.sh` for the Cloudflare Worker; do not run the unbundled template directly. Deploy from this directory with `wrangler deploy` after bundling, using the existing protected Cloudflare credential. The Worker serves only plain text at `/` and `/setup.sh`; it has no dependency on the personal website origin and changes no existing website route. Its config declares only `setup.toni.foo`.
 
