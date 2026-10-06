@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+archive="$tmp/home.tar.gz"
+echo 'Preparing saved home files. Save editor buffers and avoid editing during this snapshot.'
+tar -czf "$archive" -C "$HOME" .
+size=$(stat -c %s "$archive")
+if (( size > 80 * 1024 * 1024 )); then
+    echo 'Archive exceeds the 80 MiB upload limit. Delete unneeded files and retry.' >&2
+    exit 1
+fi
+digest=$(sha256sum "$archive"); digest=${digest%% *}
+echo 'Archive ready. Generate a code on your private School backup phone page now.'
+read -r -s -p 'Four-digit code (15-second claim window): ' code </dev/tty
+printf '\n'
+[[ $code =~ ^[0-9]{4}$ ]] || { echo 'Expected four digits.' >&2; exit 1; }
+# The code is not passed in argv, shell history, an environment variable or a file.
+printf 'header = "Authorization: Bearer %s"\n' "$code" |
+    curl --config - --fail-with-body --silent --show-error \
+        --connect-timeout 10 --max-time 300 \
+        --header 'Content-Type: application/gzip' --data-binary "@$archive" \
+        https://setup.toni.foo/backup -o "$tmp/receipt.json"
+unset code
+grep -q "\"sha256\":\"$digest\"" "$tmp/receipt.json" || {
+    echo 'Upload receipt checksum mismatch. Do not delete your local work.' >&2; exit 1;
+}
+printf 'Saved privately on DGX: '
+cat "$tmp/receipt.json"
+printf '\n'

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Only managed config is replaced; every other home file is left alone.
+if [[ $(< "$MY_VIM_ENV/../school-release") != $(cat "$HOME/.school-config-version" 2>/dev/null || true) ]]; then
+    backup="$HOME/.school-config-backups/$(date -u +%Y%m%dT%H%M%SZ)-$$"
+    install_link() {
+        local target=$1 link=$2
+        if [[ -L $link && $(readlink "$link") == "$target" ]]; then return; fi
+        if [[ -e $link || -L $link ]]; then
+            mkdir -p "$backup"
+            mv -- "$link" "$backup/$(basename "$link")"
+        fi
+        ln -s "$target" "$link"
+    }
+    mkdir -p "$HOME/.config"
+    install_link "$MY_VIM_ENV/school/zshrc" "$HOME/.zshrc"
+    install_link "$MY_VIM_ENV/school/tmux.conf" "$HOME/.tmux.conf"
+    install_link "$MY_VIM_ENV/nvim" "$HOME/.config/nvim"
+    install_link "$MY_VIM_ENV" "$HOME/my-vim-env"
+    cp /opt/school-release "$HOME/.school-config-version"
+fi
+exec "$@"

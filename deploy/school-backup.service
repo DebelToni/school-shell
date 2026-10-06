@@ -1,0 +1,24 @@
+[Unit]
+Description=Private school backup code generator and upload-only intake
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/school/school-shell
+EnvironmentFile=%h/.local/state/school-backup/runtime.env
+Environment=PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ExecStart=%h/school/school-shell/.venv/bin/python backup/server.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/state/school-backup %h/data/school-shell/archives
+MemoryMax=256M
+TasksMax=32
+
+[Install]
+WantedBy=default.target

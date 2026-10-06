@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>School backup</title>
+<style>body{margin:0;background:#fafafa;color:#171717;font:17px system-ui,sans-serif}main{max-width:420px;margin:12vh auto;padding:24px}h1{font-size:26px;font-weight:600;margin:0 0 32px}button{font:inherit;border:0;border-radius:12px;padding:15px 20px;background:#171717;color:white;width:100%;cursor:pointer}button:disabled{opacity:.4;cursor:default}#code{font-size:64px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:8px;min-height:90px;margin:24px 0 0}p{color:#555;line-height:1.5}#copy{background:#e9e9e9;color:#171717;margin:12px 0;display:none}</style></head>
+<body><main><h1>School backup</h1><button id="generate">Generate upload code</button><div id="code" aria-live="polite"></div><p id="message"></p><button id="copy">Copy code</button><p id="quota"></p></main>
+<script>
+const generate=document.querySelector('#generate'),code=document.querySelector('#code'),message=document.querySelector('#message'),quota=document.querySelector('#quota'),copy=document.querySelector('#copy');
+let expires=0,secret='',cooldownUntil=0,remaining=0;
+function paint(){const now=Date.now(),seconds=Math.max(0,Math.ceil((expires-now)/1000)),cooldown=Math.max(0,Math.ceil((cooldownUntil-now)/1000));generate.disabled=remaining===0||cooldown>0;quota.textContent=`Codes left today: ${remaining}${cooldown?` · Next code in ${cooldown}s`:''}`;if(secret&&seconds){code.textContent=secret;message.textContent=`Start the upload within ${seconds}s.`;copy.style.display='block'}else if(secret){secret='';code.textContent='Expired';message.textContent='Prepare the archive before generating another code.';copy.style.display='none'}}
+async function status(){try{const r=await fetch('./api/status',{cache:'no-store'}),s=await r.json();remaining=s.remaining;cooldownUntil=Date.now()+s.cooldown_s*1000;paint()}catch{message.textContent='Cannot reach the private service.'}}
+generate.onclick=async()=>{generate.disabled=true;try{const r=await fetch('./api/code',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}),s=await r.json();if(!r.ok){message.textContent=s.error;await status();return}secret=s.code;expires=Date.now()+s.expires_in*1000;await status();paint()}catch{message.textContent='Cannot generate a code.';await status()}};
+copy.onclick=()=>navigator.clipboard.writeText(secret);status();setInterval(paint,1000);setInterval(status,10000);
+</script></body></html>

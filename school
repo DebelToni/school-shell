@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
-image=school-shell:v1
-name="school-$(id -u)"
-volume="school-home-$(id -u)"
+image=school-shell:v2.0.0
+uid=${SUDO_UID:-$(id -u)}
+name="school-$uid"
+volume="school-home-$uid"
 docker_cmd=(docker)
-if ! docker info >/dev/null 2>&1; then
-    docker_cmd=(sudo docker)
-fi
+if ! docker info >/dev/null 2>&1; then docker_cmd=(sudo docker); fi
 if ! "${docker_cmd[@]}" info >/dev/null 2>&1; then
     echo 'Docker is not running. Run: sudo systemctl start docker' >&2
     exit 1
 fi
 if "${docker_cmd[@]}" container inspect "$name" >/dev/null 2>&1; then
     label=$("${docker_cmd[@]}" inspect --format '{{index .Config.Labels "school-shell"}}' "$name")
-    if [[ $label != v1 ]]; then
-        echo "Container $name already exists and is not owned by school-shell." >&2
-        exit 1
-    fi
+    [[ $label == v1 || $label == v2 ]] || { echo "Unmanaged container $name already exists." >&2; exit 1; }
+    current=$("${docker_cmd[@]}" inspect --format '{{.Image}}' "$name")
+    desired=$("${docker_cmd[@]}" image inspect --format '{{.Id}}' "$image")
+    [[ $current == "$desired" ]] || { echo 'Rerun the setup installer to upgrade this workspace.' >&2; exit 1; }
 else
+    "${docker_cmd[@]}" volume create --label school-shell=true "$volume" >/dev/null
     "${docker_cmd[@]}" run -d --init --restart unless-stopped \
-        --name "$name" --hostname school --label school-shell=v1 \
+        --name "$name" --hostname school --label school-shell=v2 \
         --mount "type=volume,src=$volume,dst=/home/student" "$image" >/dev/null
 fi
 "${docker_cmd[@]}" start "$name" >/dev/null

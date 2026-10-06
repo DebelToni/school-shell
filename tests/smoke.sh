@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-image=${1:-school-shell:v1}
+image=${1:-school-shell:v2.0.0}
 name="school-shell-test-$$"
 volume="$name-home"
 cleanup() {

@@ -3,12 +3,15 @@ set -euo pipefail
 mkdir /mock
 if [[ $SCENARIO != no-systemd ]]; then mkdir -p /run/systemd/system; fi
 if [[ $SCENARIO == wrong-os ]]; then printf 'ID=ubuntu\nVERSION_ID=22.04\n' > /etc/os-release; fi
+case $SCENARIO in upgrade|same-version|foreign|bad-mount) touch /mock-container ;; esac
 cat > /mock/mock <<'MOCK'
 #!/bin/bash
 set -euo pipefail
 command=${0##*/}
 printf '%s %s\n' "$command" "$*" >> /calls
 case $command in
+    grep)
+        if [[ $* == *microsoft* ]]; then [[ $SCENARIO != wrong-host ]]; else exec /usr/bin/grep "$@"; fi ;;
     dpkg) if [[ $SCENARIO == wrong-arch ]]; then echo riscv64; else echo arm64; fi ;;
     dpkg-query)
         if [[ ${@: -1} == docker-ce && $SCENARIO != external ]]; then echo installed
@@ -20,23 +23,43 @@ case $command in
             (cd "${dest%/*}"; sha256sum school-shell-arm64.tar.gz) > "$dest"
         else printf mock > "$dest"; fi ;;
     docker)
-        if [[ $1 == image && $SCENARIO != success ]]; then exit 1; fi
-        if [[ $1 == pull && $SCENARIO == fallback ]]; then exit 1; fi ;;
+        case "$1 ${2:-}" in
+            'container inspect') [[ -e /mock-container ]] ;;
+            'image inspect')
+                if [[ $* == *'{{.Id}}'* ]]; then echo new-image
+                elif [[ $SCENARIO == pull || $SCENARIO == fallback ]]; then exit 1; fi ;;
+            'inspect --format')
+                if [[ $* == *Config.Labels* ]]; then
+                    if [[ $SCENARIO == foreign ]]; then echo foreign
+                    elif [[ $SCENARIO == upgrade ]]; then echo v1
+                    else echo v2; fi
+                elif [[ $* == *Mounts* ]]; then
+                    if [[ $SCENARIO == bad-mount ]]; then echo bind:foreign; else echo volume:school-home-0; fi
+                elif [[ $* == *'{{.Image}}'* ]]; then
+                    if [[ $SCENARIO == upgrade ]]; then echo old-image; else echo new-image; fi
+                fi ;;
+            'rm -f') rm -f /mock-container ;;
+            *) if [[ $1 == pull && $SCENARIO == fallback ]]; then exit 1; fi ;;
+        esac ;;
 esac
 MOCK
 chmod +x /mock/mock
-for command in apt-get curl dpkg dpkg-query systemctl docker usermod; do ln -s mock "/mock/$command"; done
+for command in apt-get curl dpkg dpkg-query systemctl docker usermod grep; do ln -s mock "/mock/$command"; done
 export PATH="/mock:$PATH"
 case $SCENARIO in
-    success|pull|fallback)
+    success|pull|fallback|upgrade|same-version)
         bash /src/site/setup.sh
         cmp /src/school /usr/local/bin/school
+        cmp /src/cleanup.sh /usr/local/bin/school-clean
         test -x /usr/local/bin/school
         bash /src/site/setup.sh
         test "$(grep -c '^URIs:' /etc/apt/sources.list.d/docker.sources)" = 1
         grep -q '^apt-get install .*docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin$' /calls
         if [[ $SCENARIO == fallback ]]; then grep -q '^docker load -i ' /calls; fi
         if [[ $SCENARIO == pull ]]; then grep -q '^docker tag ' /calls; fi
+        if [[ $SCENARIO == upgrade ]]; then test ! -e /mock-container; grep -q '^docker rm -f school-0$' /calls; fi
+        if [[ $SCENARIO == same-version ]]; then test -e /mock-container; ! grep -q '^docker rm ' /calls; fi
+        ! grep -q '^docker volume rm ' /calls
         ;;
     *)
         if bash /src/site/setup.sh > /result 2>&1; then echo "Guard failed: $SCENARIO" >&2; exit 1; fi

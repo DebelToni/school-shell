@@ -1,4 +1,8 @@
 .wrangler/
-site/setup.sh
+site/*.sh
+__pycache__/
+.venv/
+node_modules/
+dist/
 node_modules/
 dist/

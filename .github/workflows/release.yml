@@ -18,16 +18,23 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
       - name: Build and test
         run: |
           python3 publish-site.py
-          bash -n school site/setup.sh tests/*.sh
+          for script in school school-entrypoint school-upload setup.sh cleanup.sh site/*.sh tests/*.sh; do bash -n "$script"; done
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          python3 -W error::ResourceWarning -m unittest discover -s tests -p test_backup.py
           bash tests/bootstrap.sh
-          node tests/worker.mjs
           docker build -t school-shell:${{ github.ref_name }} .
-          docker tag school-shell:${{ github.ref_name }} school-shell:v1
           bash tests/smoke.sh school-shell:${{ github.ref_name }}
           bash tests/launcher.sh
+          bash tests/upgrade.sh school-shell:${{ github.ref_name }}
+          bash tests/cli.sh school-shell:${{ github.ref_name }}
+          docker run --rm --mount "type=bind,src=$PWD/tests,dst=/tests,readonly" school-shell:${{ github.ref_name }} nvim --headless '+luafile /tests/editor.lua'
       - name: Publish image and archive
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,4 +70,4 @@ jobs:
             ghcr.io/debeltoni/school-shell:${{ github.ref_name }}-arm64
           (cd dist; sha256sum *.tar.gz > SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" dist/* --title "School shell $GITHUB_REF_NAME" \
-            --notes 'Ubuntu 24.04: plain Neovim, C/C++ tools, zsh and tmux. Native amd64 and arm64 builds tested before publishing.'
+            --notes 'Pinned my-vim-env school profile with C/C++, Bash and Lua LSPs, zsh and tmux. Home-preserving upgrades, explicit school cleanup and upload-only backups. Native amd64/arm64 container, editor, persistence and safety tests passed before publishing.'
