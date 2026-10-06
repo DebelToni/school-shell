@@ -19,7 +19,7 @@ school nvim     # plain Neovim
 school tmux     # tmux inside the container
 ```
 
-V1 includes stock Ubuntu Neovim, zsh, tmux, GCC/G++, make, gdb, cmake, git, ripgrep, curl, SSH client, unzip and sudo. No my-vim-env files, plugins, LSP setup, personal credentials or Windows key remapping. Ubuntu's packaged Neovim is deliberately used, not the latest upstream release.
+V1 includes stock Ubuntu Neovim, zsh, tmux, GCC/G++, make, gdb, cmake, git, ripgrep, curl, SSH client, unzip and sudo. Zsh has only a small persistent-history configuration to skip its first-run wizard. No my-vim-env files, plugins, LSP setup, personal credentials or Windows key remapping. Ubuntu's packaged Neovim is deliberately used, not the latest upstream release.
 
 ## How it works
 
@@ -50,9 +50,11 @@ Rerunning setup reinstalls its managed Docker repository and launcher without de
 
 ```bash
 docker build -t school-shell:v1 .
+uv run --no-project python publish-site.py
 bash tests/smoke.sh
 bash tests/bootstrap.sh
-uv run --no-project python publish-site.py
+bash tests/launcher.sh  # requires no existing school workspace for your UID
+node tests/worker.mjs
 bash -n site/setup.sh school
 ```
 
@@ -62,7 +64,7 @@ Smoke tests compile and execute C and C++, check installed tools and a tmux sess
 
 Source: https://github.com/DebelToni/school-shell
 
-Image: `ghcr.io/debeltoni/school-shell:v1`, with native `v1-amd64` and `v1-arm64` tags. Tag pushes run native GitHub Actions builds and smoke tests before publishing both architectures and public image archives to the release. GitHub initially makes GHCR packages private; the owner can switch the package to public in its settings. The release fallback keeps login-free installation working meanwhile.
+Current image: `ghcr.io/debeltoni/school-shell:v1.0.1`, with native `v1.0.1-amd64` and `v1.0.1-arm64` tags. The installer tags the downloaded release locally as `school-shell:v1`. Tag pushes run native GitHub Actions builds and smoke tests before publishing both architectures and public image archives to the release. GitHub initially makes GHCR packages private; the owner can switch the package to public in its settings. The release fallback keeps login-free installation working meanwhile.
 
 `setup.sh` contains an embedded-helper placeholder. `publish-site.py` produces `site/setup.sh` for the Cloudflare Worker; do not run the unbundled template directly. Deploy from this directory with `wrangler deploy` after bundling, using the existing protected Cloudflare credential. The Worker serves only plain text at `/` and `/setup.sh`; it has no dependency on the personal website origin and changes no existing website route. Its config declares only `setup.toni.foo`.
 

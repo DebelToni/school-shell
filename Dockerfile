@@ -7,6 +7,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     && locale-gen en_US.UTF-8 \
     && userdel ubuntu \
     && useradd -m -u 1000 -s /usr/bin/zsh student \
+    && printf 'HISTFILE=~/.zsh_history\nHISTSIZE=10000\nSAVEHIST=10000\nsetopt appendhistory\n' > /home/student/.zshrc \
+    && chown student:student /home/student/.zshrc \
     && printf 'student ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/student \
     && chmod 0440 /etc/sudoers.d/student \
     && rm -rf /var/lib/apt/lists/*

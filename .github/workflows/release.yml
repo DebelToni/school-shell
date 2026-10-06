@@ -23,8 +23,11 @@ jobs:
           python3 publish-site.py
           bash -n school site/setup.sh tests/*.sh
           bash tests/bootstrap.sh
+          node tests/worker.mjs
           docker build -t school-shell:${{ github.ref_name }} .
+          docker tag school-shell:${{ github.ref_name }} school-shell:v1
           bash tests/smoke.sh school-shell:${{ github.ref_name }}
+          bash tests/launcher.sh
       - name: Publish image and archive
         env:
           GH_TOKEN: ${{ github.token }}

@@ -8,6 +8,7 @@ trap 'echo "Setup failed on line $LINENO. Fix the reported error and rerun setup
 [[ $ID == ubuntu && $VERSION_ID == 24.04 ]] || {
     echo 'V1 supports Ubuntu 24.04 only.' >&2; exit 1;
 }
+version=v1.0.1
 arch=$(dpkg --print-architecture)
 [[ $arch == amd64 || $arch == arm64 ]] || { echo "Unsupported architecture: $arch" >&2; exit 1; }
 if [[ ! -d /run/systemd/system ]]; then
@@ -49,17 +50,18 @@ apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
 systemctl enable --now docker
 docker info >/dev/null
 if ! docker image inspect school-shell:v1 >/dev/null 2>&1; then
-    if docker pull "ghcr.io/debeltoni/school-shell:v1-$arch"; then
-        docker tag "ghcr.io/debeltoni/school-shell:v1-$arch" school-shell:v1
+    if docker pull "ghcr.io/debeltoni/school-shell:$version-$arch"; then
+        docker tag "ghcr.io/debeltoni/school-shell:$version-$arch" school-shell:v1
     else
         echo 'Registry unavailable. Using the public, checksum-verified GitHub release.'
         tmp=$(mktemp -d)
         trap 'rm -rf "$tmp"' EXIT
-        release=https://github.com/DebelToni/school-shell/releases/download/v1
+        release=https://github.com/DebelToni/school-shell/releases/download/$version
         curl -fL --retry 3 "$release/school-shell-$arch.tar.gz" -o "$tmp/school-shell-$arch.tar.gz"
         curl -fL --retry 3 "$release/SHA256SUMS" -o "$tmp/SHA256SUMS"
         (cd "$tmp"; grep "  school-shell-$arch.tar.gz$" SHA256SUMS | sha256sum --check --strict -)
         docker load -i "$tmp/school-shell-$arch.tar.gz"
+        docker tag "school-shell:$version" school-shell:v1
     fi
 fi
 docker run --rm school-shell:v1 sh -ec 'nvim --version >/dev/null; gcc --version >/dev/null; tmux -V'
