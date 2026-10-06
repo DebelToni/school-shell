@@ -11,7 +11,7 @@ school
 
 `school` opens zsh. Arguments run inside the same workspace, for example `school nvim`, `school tmux`, or `school bash`.
 
-The installer downloads the native amd64 or arm64 `v2.0.1` image from public GHCR. A SHA-256-verified public GitHub release archive is the fallback. No school-PC credentials or local image build are required. Network, APT and disk speed determine installation time.
+The installer downloads the native amd64 or arm64 `v2.0.2` image from public GHCR. A SHA-256-verified public GitHub release archive is the fallback. No school-PC credentials or local image build are required. Network, APT and disk speed determine installation time.
 
 Rerun this installer for a new release. A changed image replaces the old container, stopping running processes/tmux sessions and discarding packages or changes outside home. The complete `/home/student` volume survives. Same-image reruns retain the container and its sessions. Managed `.zshrc`, `.tmux.conf`, `.config/nvim` and `my-vim-env` links are refreshed on a release change; replaced custom contents are retained under `~/.school-config-backups/`.
 
@@ -90,19 +90,20 @@ npm ci --ignore-scripts
 npm test
 uv run --no-project python -W error::ResourceWarning -m unittest discover -s tests -p test_backup.py
 bash tests/bootstrap.sh
-docker build -t school-shell:v2.0.1 .
+docker build -t school-shell:v2.0.2 .
 bash tests/smoke.sh
 bash tests/launcher.sh
 bash tests/upgrade.sh
 bash tests/cli.sh
-docker run --rm --mount "type=bind,src=$PWD/tests,dst=/tests,readonly" school-shell:v2.0.1 nvim --headless '+luafile /tests/editor.lua'
+uv run --no-project python tests/shell.py
+docker run --rm --mount "type=bind,src=$PWD/tests,dst=/tests,readonly" school-shell:v2.0.2 nvim --headless '+luafile /tests/editor.lua'
 ```
 
-Launcher tests require no preexisting school workspace for the current host UID. Other container/volume tests use unique disposable names. Bootstrap and destructive cleanup tests mock host operations only inside disposable containers, with PTYs for confirmation/code prompts. Workerd tests exercise real fixed-length HTTP forwarding. Editor tests open real C, C++, Bash and Lua projects and verify LSP definitions, completion, diagnostics and parsers. These tests do not prove a v2 Windows/WSL installation; the original v1 installer was separately confirmed on the school PC.
+Launcher tests require no preexisting school workspace for the current host UID. Other container/volume tests use unique disposable names. Bootstrap and destructive cleanup tests mock host operations only inside disposable containers, with PTYs for confirmation/code prompts. Interactive zsh tests run offline in a real PTY, including fzf bindings and the baked gitstatus daemon. Workerd tests exercise real fixed-length HTTP forwarding. Editor tests open real C, C++, Bash and Lua projects and verify LSP definitions, completion, diagnostics and parsers. These tests do not prove a v2 Windows/WSL installation; the original v1 installer was separately confirmed on the school PC.
 
 ## Publishing and server boundaries
 
-Source: https://github.com/DebelToni/school-shell. Image: `ghcr.io/debeltoni/school-shell:v2.0.1`, with native `-amd64` and `-arm64` tags. Tag CI builds/tests both architectures before publishing the multiarch image and public release archives. Later releases must consistently bump the image version in the Dockerfile, installer and launcher.
+Source: https://github.com/DebelToni/school-shell. Image: `ghcr.io/debeltoni/school-shell:v2.0.2`, with native `-amd64` and `-arm64` tags. Tag CI builds/tests both architectures before publishing the multiarch image and public release archives. Later releases must consistently bump the image version in the Dockerfile, installer and launcher.
 
 `setup.sh` is a template. `publish-site.py` embeds its helpers and creates the three Worker assets under `site/`. Deploy the Worker only after the release and backup origin are ready, using protected Cloudflare credentials. It serves scripts at `/setup.sh`, `/cleanup.sh` and `/school-upload`, and relays only `/backup` POST to the upload origin using a `FixedLengthStream`.
 

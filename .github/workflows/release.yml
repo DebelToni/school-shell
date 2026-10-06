@@ -34,6 +34,7 @@ jobs:
           bash tests/launcher.sh
           bash tests/upgrade.sh school-shell:${{ github.ref_name }}
           bash tests/cli.sh school-shell:${{ github.ref_name }}
+          python3 tests/shell.py school-shell:${{ github.ref_name }}
           docker run --rm --mount "type=bind,src=$PWD/tests,dst=/tests,readonly" school-shell:${{ github.ref_name }} nvim --headless '+luafile /tests/editor.lua'
       - name: Publish image and archive
         env:

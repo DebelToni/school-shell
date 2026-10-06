@@ -54,6 +54,11 @@ RUN git init -q /opt/my-vim-env && \
     git init -q /opt/powerlevel10k && \
     git -C /opt/powerlevel10k fetch -q --depth 1 https://github.com/romkatv/powerlevel10k.git d05a1b00f9a61f9578bf9dc19b8451942dde8734 && \
     git -C /opt/powerlevel10k checkout -q --detach FETCH_HEAD
+# Ubuntu's container excludes documentation, including fzf's runtime shell scripts.
+RUN GITSTATUS_CACHE_DIR=/opt/powerlevel10k/gitstatus/usrbin /opt/powerlevel10k/gitstatus/install && \
+    apt-get update && cd /tmp && apt-get download "fzf=$(dpkg-query -W -f='${Version}' fzf)" && \
+    dpkg-deb -x fzf_*.deb /tmp/fzf-extracted && mkdir /opt/fzf-shell && \
+    cp /tmp/fzf-extracted/usr/share/doc/fzf/examples/*.zsh /opt/fzf-shell/
 COPY build/plugins.json build/plugins.sh build/parsers.lua /build/
 RUN bash /build/plugins.sh && nvim --headless -u NONE -l /build/parsers.lua
 
@@ -66,8 +71,9 @@ COPY --from=editor-build /opt/my-vim-env/tmux/scripts /opt/my-vim-env/tmux/scrip
 COPY --from=editor-build /opt/nvim-plugins /opt/nvim-plugins
 COPY --from=editor-build /opt/nvim-parsers /opt/nvim-parsers
 COPY --from=editor-build /opt/powerlevel10k /opt/powerlevel10k
+COPY --from=editor-build /opt/fzf-shell /usr/share/doc/fzf/examples
 COPY --chmod=0755 school-entrypoint school-upload /usr/local/bin/
-RUN printf 'v2.0.1\n%s\n' "$MY_VIM_ENV_REV" > /opt/school-release
+RUN printf 'v2.0.2\n%s\n' "$MY_VIM_ENV_REV" > /opt/school-release
 USER student
 WORKDIR /home/student
 ENTRYPOINT ["/usr/local/bin/school-entrypoint"]

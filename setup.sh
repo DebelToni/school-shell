@@ -7,7 +7,7 @@ trap 'echo "Setup failed on line $LINENO. Fix the reported error and rerun setup
 . /etc/os-release
 [[ $ID == ubuntu && $VERSION_ID == 24.04 ]] || { echo 'Requires Ubuntu 24.04.' >&2; exit 1; }
 grep -qi microsoft /proc/sys/kernel/osrelease || { echo 'This installer is for WSL, not DGX.' >&2; exit 1; }
-version=v2.0.1
+version=v2.0.2
 uid=${SUDO_UID:-0}
 name="school-$uid"
 volume="school-home-$uid"
