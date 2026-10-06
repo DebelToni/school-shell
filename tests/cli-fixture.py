@@ -23,6 +23,7 @@ case $command in
  grep) if [[ $* == *microsoft* ]]; then [[ $SCENARIO != cleanup-wrong-host ]]; else exec /usr/bin/grep "$@"; fi ;;
  docker)
   case "$1 ${2:-}" in
+   'info ') [[ $SCENARIO != cleanup-docker-stopped ]] ;;
    'container inspect') [[ -e /mock-container ]] ;;
    'inspect --format')
     if [[ $* == *Config.Labels* ]]; then

@@ -7,7 +7,7 @@ trap 'echo "Setup failed on line $LINENO. Fix the reported error and rerun setup
 . /etc/os-release
 [[ $ID == ubuntu && $VERSION_ID == 24.04 ]] || { echo 'Requires Ubuntu 24.04.' >&2; exit 1; }
 grep -qi microsoft /proc/sys/kernel/osrelease || { echo 'This installer is for WSL, not DGX.' >&2; exit 1; }
-version=v2.0.0
+version=v2.0.1
 uid=${SUDO_UID:-0}
 name="school-$uid"
 volume="school-home-$uid"
@@ -16,6 +16,7 @@ arch=$(dpkg --print-architecture)
 [[ -d /run/systemd/system ]] || {
     echo 'Enable [boot] systemd=true in /etc/wsl.conf, run wsl --shutdown in Windows, then retry.' >&2; exit 1;
 }
+validate_workspace() {
 if command -v docker >/dev/null && docker container inspect "$name" >/dev/null 2>&1; then
     label=$(docker inspect --format '{{index .Config.Labels "school-shell"}}' "$name")
     mount=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/home/student"}}{{.Type}}:{{.Name}}{{end}}{{end}}' "$name")
@@ -23,15 +24,20 @@ if command -v docker >/dev/null && docker container inspect "$name" >/dev/null 2
         echo "Container $name has unexpected ownership or storage. Resolve it manually." >&2; exit 1;
     }
 fi
+}
+validate_workspace
 conflicts=()
 for pkg in docker.io docker-compose docker-compose-v2 docker-doc docker-buildx podman-docker containerd runc; do
     if [[ $(dpkg-query -W -f='${db:Status-Status}' "$pkg" 2>/dev/null || true) == installed ]]; then conflicts+=("$pkg"); fi
 done
 (( ${#conflicts[@]} == 0 )) || { echo "Remove conflicting packages explicitly: ${conflicts[*]}" >&2; exit 1; }
-if command -v docker >/dev/null && ! dpkg-query -W docker-ce >/dev/null 2>&1; then
+engine_installed=$(dpkg-query -W -f='${db:Status-Status}' docker-ce 2>/dev/null || true)
+if command -v docker >/dev/null && [[ $engine_installed != installed ]]; then
     echo 'Disable external Docker Desktop WSL integration before installing this engine.' >&2; exit 1
 fi
 export DEBIAN_FRONTEND=noninteractive
+# Do not upgrade/restart an existing engine and interrupt same-version sessions.
+if [[ $engine_installed != installed ]]; then
 apt-get update
 apt-get install -y --no-install-recommends ca-certificates curl
 install -m 0755 -d /etc/apt/keyrings
@@ -47,8 +53,10 @@ Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 apt-get update
 apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+fi
 systemctl enable --now docker
 docker info >/dev/null
+validate_workspace
 image="school-shell:$version"
 if ! docker image inspect "$image" >/dev/null 2>&1; then
     if docker pull "ghcr.io/debeltoni/school-shell:$version-$arch"; then

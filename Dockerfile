@@ -67,7 +67,7 @@ COPY --from=editor-build /opt/nvim-plugins /opt/nvim-plugins
 COPY --from=editor-build /opt/nvim-parsers /opt/nvim-parsers
 COPY --from=editor-build /opt/powerlevel10k /opt/powerlevel10k
 COPY --chmod=0755 school-entrypoint school-upload /usr/local/bin/
-RUN printf 'v2.0.0\n%s\n' "$MY_VIM_ENV_REV" > /opt/school-release
+RUN printf 'v2.0.1\n%s\n' "$MY_VIM_ENV_REV" > /opt/school-release
 USER student
 WORKDIR /home/student
 ENTRYPOINT ["/usr/local/bin/school-entrypoint"]

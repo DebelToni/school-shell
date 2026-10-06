@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-image=school-shell:v2.0.0
+image=school-shell:v2.0.1
 uid=${SUDO_UID:-$(id -u)}
 name="school-$uid"
 volume="school-home-$uid"
@@ -12,7 +12,8 @@ if ! "${docker_cmd[@]}" info >/dev/null 2>&1; then
 fi
 if "${docker_cmd[@]}" container inspect "$name" >/dev/null 2>&1; then
     label=$("${docker_cmd[@]}" inspect --format '{{index .Config.Labels "school-shell"}}' "$name")
-    [[ $label == v1 || $label == v2 ]] || { echo "Unmanaged container $name already exists." >&2; exit 1; }
+    mount=$("${docker_cmd[@]}" inspect --format '{{range .Mounts}}{{if eq .Destination "/home/student"}}{{.Type}}:{{.Name}}{{end}}{{end}}' "$name")
+    [[ ($label == v1 || $label == v2) && $mount == "volume:$volume" ]] || { echo "Unexpected container ownership or storage: $name." >&2; exit 1; }
     current=$("${docker_cmd[@]}" inspect --format '{{.Image}}' "$name")
     desired=$("${docker_cmd[@]}" image inspect --format '{{.Id}}' "$image")
     [[ $current == "$desired" ]] || { echo 'Rerun the setup installer to upgrade this workspace.' >&2; exit 1; }

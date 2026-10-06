@@ -6,6 +6,7 @@ if ! grep -qi microsoft /proc/sys/kernel/osrelease; then
     echo 'This destructive cleanup is for WSL only, never DGX.' >&2; exit 1
 fi
 [[ $# == 0 || ($# == 1 && $1 == --no-backup) ]] || { echo 'Usage: school-clean [--no-backup]' >&2; exit 1; }
+docker info >/dev/null 2>&1 || { echo 'Start Docker with sudo systemctl start docker, then rerun cleanup.' >&2; exit 1; }
 uid=${SUDO_UID:-0}
 name="school-$uid"
 volume="school-home-$uid"
