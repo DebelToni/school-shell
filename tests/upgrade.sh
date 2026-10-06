@@ -14,7 +14,7 @@ docker run --rm --mount "type=volume,src=$volume,dst=/home/student" "$old" bash 
   printf old-history > .zsh_history
   printf saved-work > work.cpp
 '
-docker run -d --init --name "$name" --mount "type=volume,src=$volume,dst=/home/student" "${1:-school-shell:v2.0.2}" >/dev/null
+docker run -d --init --name "$name" --mount "type=volume,src=$volume,dst=/home/student" "${1:-school-shell:v2.0.3}" >/dev/null
 docker exec "$name" bash -ec '
   test "$(cat work.cpp)" = saved-work
   test "$(cat .zsh_history)" = old-history

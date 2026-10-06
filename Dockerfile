@@ -73,7 +73,9 @@ COPY --from=editor-build /opt/nvim-parsers /opt/nvim-parsers
 COPY --from=editor-build /opt/powerlevel10k /opt/powerlevel10k
 COPY --from=editor-build /opt/fzf-shell /usr/share/doc/fzf/examples
 COPY --chmod=0755 school-entrypoint school-upload /usr/local/bin/
-RUN printf 'v2.0.2\n%s\n' "$MY_VIM_ENV_REV" > /opt/school-release
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    python-is-python3 python3-pip python3-venv && rm -rf /var/lib/apt/lists/* && \
+    printf 'v2.0.3\n%s\n' "$MY_VIM_ENV_REV" > /opt/school-release
 USER student
 WORKDIR /home/student
 ENTRYPOINT ["/usr/local/bin/school-entrypoint"]

@@ -7,7 +7,7 @@ import sys
 import time
 
 name = f'school-shell-tty-test-{os.getpid()}'
-image = sys.argv[1] if len(sys.argv) > 1 else 'school-shell:v2.0.2'
+image = sys.argv[1] if len(sys.argv) > 1 else 'school-shell:v2.0.3'
 pid, fd = pty.fork()
 if pid == 0:
     os.execvp('docker', ['docker', 'run', '--rm', '-it', '--network', 'none', '--name', name, image, 'zsh', '-l'])

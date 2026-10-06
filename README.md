@@ -11,7 +11,7 @@ school
 
 `school` opens zsh. Arguments run inside the same workspace, for example `school nvim`, `school tmux`, or `school bash`.
 
-The installer downloads the native amd64 or arm64 `v2.0.2` image from public GHCR. A SHA-256-verified public GitHub release archive is the fallback. No school-PC credentials or local image build are required. Network, APT and disk speed determine installation time.
+The installer downloads the native amd64 or arm64 `v2.0.3` image from public GHCR. A SHA-256-verified public GitHub release archive is the fallback. No school-PC credentials or local image build are required. Network, APT and disk speed determine installation time.
 
 Rerun this installer for a new release. A changed image replaces the old container, stopping running processes/tmux sessions and discarding packages or changes outside home. The complete `/home/student` volume survives. Same-image reruns retain the container and its sessions. Managed `.zshrc`, `.tmux.conf`, `.config/nvim` and `my-vim-env` links are refreshed on a release change; replaced custom contents are retained under `~/.school-config-backups/`.
 
@@ -23,6 +23,7 @@ The school subset of [my-vim-env](https://github.com/DebelToni/Neovim) is pinned
 - C/C++: GCC/G++, clang, clangd, clang-format, make, gdb and cmake.
 - Bash: bash-language-server 5.8.1, ShellCheck and shfmt.
 - Lua: Lua language server 3.19.1.
+- Python: Ubuntu-maintained 3.12 with `python`/`python3`, `pip`/`pip3` and virtual-environment support.
 - Zsh: portable Powerlevel10k prompt, vi mode, persistent history, autosuggestions, syntax highlighting, fzf, zoxide, eza and bat.
 - Tmux: Ctrl+A, top status, mouse/vi copy, OSC52, pane navigation and window picker.
 
@@ -35,6 +36,18 @@ Each WSL UID gets `school-<UID>` and `school-home-<UID>`. Inside, the user is `s
 Docker Engine, CLI, containerd, Buildx and Compose use Docker's official Ubuntu APT repository. An existing official Engine installation is reused rather than upgraded/restarted by setup. The installer enables Docker and adds the WSL user to its group, which grants root-equivalent WSL access. The launcher uses sudo until a new login applies group membership.
 
 The installer refuses non-WSL hosts, unsupported Ubuntu/architectures, missing systemd, conflicting distro Docker packages, external Docker Desktop integration and unexpected existing container storage. If needed, preserve other `/etc/wsl.conf` settings and add `[boot]` with `systemd=true`, then run `wsl --shutdown` in Windows and reopen Ubuntu.
+
+## Python packages
+
+Ubuntu protects its system Python from pip changes. Use a project virtualenv inside home:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install requests
+```
+
+That virtualenv and its packages persist with the home volume. No `sudo pip` or `--break-system-packages` is needed. Python editor/LSP configuration is unchanged.
 
 ## Upload a home backup
 
@@ -90,20 +103,20 @@ npm ci --ignore-scripts
 npm test
 uv run --no-project python -W error::ResourceWarning -m unittest discover -s tests -p test_backup.py
 bash tests/bootstrap.sh
-docker build -t school-shell:v2.0.2 .
+docker build -t school-shell:v2.0.3 .
 bash tests/smoke.sh
 bash tests/launcher.sh
 bash tests/upgrade.sh
 bash tests/cli.sh
 uv run --no-project python tests/shell.py
-docker run --rm --mount "type=bind,src=$PWD/tests,dst=/tests,readonly" school-shell:v2.0.2 nvim --headless '+luafile /tests/editor.lua'
+docker run --rm --mount "type=bind,src=$PWD/tests,dst=/tests,readonly" school-shell:v2.0.3 nvim --headless '+luafile /tests/editor.lua'
 ```
 
 Launcher tests require no preexisting school workspace for the current host UID. Other container/volume tests use unique disposable names. Bootstrap and destructive cleanup tests mock host operations only inside disposable containers, with PTYs for confirmation/code prompts. Interactive zsh tests run offline in a real PTY, including fzf bindings and the baked gitstatus daemon. Workerd tests exercise real fixed-length HTTP forwarding. Editor tests open real C, C++, Bash and Lua projects and verify LSP definitions, completion, diagnostics and parsers. These tests do not prove a v2 Windows/WSL installation; the original v1 installer was separately confirmed on the school PC.
 
 ## Publishing and server boundaries
 
-Source: https://github.com/DebelToni/school-shell. Image: `ghcr.io/debeltoni/school-shell:v2.0.2`, with native `-amd64` and `-arm64` tags. Tag CI builds/tests both architectures before publishing the multiarch image and public release archives. Later releases must consistently bump the image version in the Dockerfile, installer and launcher.
+Source: https://github.com/DebelToni/school-shell. Image: `ghcr.io/debeltoni/school-shell:v2.0.3`, with native `-amd64` and `-arm64` tags. Tag CI builds/tests both architectures before publishing the multiarch image and public release archives. Later releases must consistently bump the image version in the Dockerfile, installer and launcher.
 
 `setup.sh` is a template. `publish-site.py` embeds its helpers and creates the three Worker assets under `site/`. Deploy the Worker only after the release and backup origin are ready, using protected Cloudflare credentials. It serves scripts at `/setup.sh`, `/cleanup.sh` and `/school-upload`, and relays only `/backup` POST to the upload origin using a `FixedLengthStream`.
 
